@@ -6,6 +6,9 @@ from itertools import chain
 from pathlib import Path
 from typing import List, Optional
 
+from rich.console import Console
+from rich.panel import Panel
+
 import argilla as rg
 import psycopg
 import requests
@@ -275,7 +278,7 @@ def build_apolo_docs_rag():
     chunk_size = 1024
     chunk_overlap = 100
 
-    print("Processing data")
+    print("1. Processing data")
     apolo_docs_path = clone_repo_to_tmp(
         repo_url="https://github.com/neuro-inc/platform-docs.git"
     )
@@ -289,11 +292,11 @@ def build_apolo_docs_rag():
         chunk_size=chunk_size, chunk_overlap=chunk_overlap
     ).split_documents(docs)
 
-    print("Get ebeddings")
+    print("2. Get ebeddings")
     sentences = [x.page_content for x in chunks]
     embeddings = get_embeddings(sentences=sentences)
 
-    print("Ingest data")
+    print("3. Ingest data")
     create_schema(table_name=table_name, dimensions=len(embeddings[0]))
     insert_data(
         table_name=table_name, embeddings=embeddings, sentences=sentences, batch_size=64
@@ -302,19 +305,30 @@ def build_apolo_docs_rag():
 
 def query_apolo_docs_rag(query: str = "How to run mlflow?"):
     table_name = "apolo_docs"
+    print("1. Get query embedding.")
     query_embedding = get_embeddings(sentences=[query])[0]
 
+    print("2. Run semantic search.")
     semantic_search_result = semantic_search(
         table_name=table_name, query_embedding=query_embedding, top_n=20
     )
+
+    print("3. Run keyword search.")
     keyword_search_result = keyword_search(table_name=table_name, query=query, top_n=20)
+
+    print("4. Rerank results.")
     search_result = rerank(
         query=query, sentences=semantic_search_result + keyword_search_result, top_n=5
     )
 
+    print("5. Augment & generate.")
     context = "\n".join(search_result)
     response = generate_with_context(query=query, context=context)
-    print(response)
+
+    console = Console()
+    console.print(Panel(response, title="Generated Response", border_style="green", style="bold green"))
+
+    print("6. Save response.")
     log_sample(
         query=query,
         context=context,
@@ -333,7 +347,7 @@ def build_canada_budget_rag():
 
     pdf_files = list(Path(data_path).iterdir())
 
-    print("Processing data")
+    print("1. Processing data")
     list_of_pages = [
         PyPDFLoader(pdf_files[idx]).load() for idx in range(len(pdf_files))
     ]
@@ -342,34 +356,43 @@ def build_canada_budget_rag():
         chunk_size=chunk_size, chunk_overlap=chunk_overlap
     ).split_documents(docs)
 
-    print("Get ebeddings")
+    print("2. Get ebeddings")
     sentences = [x.page_content for x in chunks]
     embeddings = get_embeddings(sentences=sentences, batch_size=32)
 
-    print("Ingest data")
+    print("3. Ingest data")
     create_schema(table_name=table_name, dimensions=len(embeddings[0]))
     insert_data(
         table_name=table_name, embeddings=embeddings, sentences=sentences, batch_size=64
     )
 
 
-def query_canada_budget_rag(query="How to run mlflow?"):
+def query_canada_budget_rag(query="What actions is the government taking to increase the new housing supply?"):
     table_name = "canada_budget"
 
+    print("1. Get query embedding.")
     query_embedding = get_embeddings(sentences=[query])[0]
 
+    print("2. Run semantic search.")
     semantic_search_result = semantic_search(
         table_name=table_name, query_embedding=query_embedding, top_n=20
     )
+    print("3. Run keyword search.")
     keyword_search_result = keyword_search(table_name=table_name, query=query, top_n=20)
+
+    print("4. Rerank results.")
     search_result = rerank(
         query=query, sentences=semantic_search_result + keyword_search_result, top_n=5
     )
 
+    print("5. Augment & generate.")
     context = "\n".join([doc for doc in search_result])
     response = generate_with_context(query=query, context=context)
-    print(response)
 
+    console = Console()
+    console.print(Panel(response, title="Generated Response", border_style="green", style="bold green"))
+
+    print("6. Save response.")
     log_sample(
         query=query,
         context=context,

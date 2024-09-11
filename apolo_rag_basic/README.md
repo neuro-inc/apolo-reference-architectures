@@ -42,7 +42,6 @@ apolo run --detach \
           --name argilla \
           --http-port 6900 \
           argilla/argilla-quickstart:v2.0.0rc2
-
 ```
 
 Create models:
@@ -56,19 +55,8 @@ apolo run --detach \
           --name generation-inference \
           --http-port 80 \
           --volume storage:generative-models:/data:rw \
-          -e HF_TOKEN=hf_ \
+          -e HF_TOKEN=$HF_TOKEN \
           ghcr.io/huggingface/text-generation-inference:2.2.0 -- --model-id meta-llama/Meta-Llama-3.1-70B-Instruct --quantize bitsandbytes-nf4
-```
-
-```bash
-apolo run --detach \
-          --no-http-auth \
-          --preset H100x1 \
-          --name generation-inference \
-          --http-port 80 \
-          --volume storage:generative-models:/data:rw \
-          -e HF_TOKEN=hf_ \
-          ghcr.io/huggingface/text-generation-inference:2.2.0 -- --model-id meta-llama/Meta-Llama-3.1-8B
 ```
 
 Embedding LLM:
@@ -128,7 +116,6 @@ python main.py build-canada-budget-rag
 ```
 
 ```bash
-python main.py query-canada-budget-rag --query 'What is Canada’s main spending?'
 python main.py query-canada-budget-rag --query 'What is the housing situation?'
 python main.py query-canada-budget-rag --query 'What actions is the government taking to increase the new housing supply?'
 ```
